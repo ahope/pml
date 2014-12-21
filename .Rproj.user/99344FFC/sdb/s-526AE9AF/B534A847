@@ -1,0 +1,16 @@
+{
+    "contents" : "data(mtcars)\nlibrary(ggplot2)\nlibrary(gridExtra)\n\n\nmtcars$trans <- factor(mtcars$am)\nlevels(mtcars$trans)\nlevels(mtcars$trans)[levels(mtcars$trans)==\"1\"]<- \"automatic\"\nlevels(mtcars$trans)[levels(mtcars$trans)==\"0\"]<- \"manual\"\n\n# First, let's plot histograms of all the data. \np1 <- qplot(data=mtcars,cyl, fill=trans)\np2 <- qplot(data=mtcars,disp, fill=trans)\np3<- qplot(data=mtcars,hp, fill=trans)\np4 <- qplot(data=mtcars,drat, fill=trans)\np5 <- qplot(data=mtcars,wt, fill=trans)\np6 <- qplot(data=mtcars,qsec, fill=trans)\np7 <- qplot(data=mtcars,vs, fill=trans)\np8 <- qplot(data=mtcars,vs, fill=trans)\np9 <- qplot(data=mtcars,am, fill=trans)\np10 <- qplot(data=mtcars,gear, fill=trans)\np11 <- qplot(data=mtcars,carb, fill=trans)\ngrid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, ncol=2)\n\n\n\np1 <- ggplot(mtcars,aes(x=mpg, y=cyl, colour=trans)) + geom_point()\np2 <- ggplot(mtcars,aes(x=mpg, y=disp, colour=trans)) + geom_point()\np3<- ggplot(mtcars,aes(x=mpg, y=hp, colour=trans)) + geom_point()\np4 <- ggplot(mtcars,aes(x=mpg, y=drat, colour=trans)) + geom_point()\np5 <- ggplot(mtcars,aes(x=mpg, y=wt, colour=trans)) + geom_point()\np6 <- ggplot(mtcars,aes(x=mpg, y=qsec, colour=trans)) + geom_point()\np7 <- ggplot(mtcars,aes(x=mpg, y=vs, colour=trans)) + geom_point()\np8 <- ggplot(mtcars,aes(x=mpg, y=vs, colour=trans)) + geom_point()\np9 <- ggplot(mtcars,aes(x=mpg, y=am, colour=trans)) + geom_point()\np10 <- ggplot(mtcars,aes(x=mpg, y=gear, colour=trans)) + geom_point()\np11 <- ggplot(mtcars,aes(x=mpg, y=carb, colour=trans)) + geom_point()\n\ngrid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, ncol=2)\n\n\n\n\n",
+    "created" : 1418614466914.000,
+    "dirty" : true,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3194192051",
+    "id" : "B534A847",
+    "lastKnownWriteTime" : 1416604967,
+    "path" : "~/Documents/data/coursera/RegMod/project1.R",
+    "project_path" : null,
+    "properties" : {
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}

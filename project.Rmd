@@ -1,0 +1,240 @@
+---
+title: "Course Project"
+author: "ahs"
+date: "December 14, 2014"
+output: pdf_document
+---
+Project Goal
+The goal of this project is to determine how well people perform a particular exercise. 
+
+```{r}
+# Load libraries
+library(caret)
+library(rattle)
+library(dplyr)
+
+# Load the data
+train_data <- read.csv('pml-training.csv')
+
+
+```
+
+1. Load the training data. 
+2. Do some exploration. 
+    + PCA to figure out what variables to get rid of. 
+    + 
+3. Decide on a model
+  + Regression/linear model
+  + Classification tree
+  + Random forest
+  
+# Exploration
+How to deal with NA values
+
+# PCA
+
+```{r}
+prComp <- prcomp(na.omit(train_data[,sapply(train_data,is.numeric)]))
+summary(prComp)
+plot(prComp, type="lines")
+
+```
+
+
+# Classification Tree
+
+```{r}
+modFit <- train(classe ~ .,method="rpart", data=train_data)
+print(modFit$finalModel)
+plot(modFit$finalModel, uniform=TRUE, main="Classification Tree")
+text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
+fancyRpartPlot(modFit$finalModel)
+
+```
+
+Awesome. See that amazing classification tree? That shows us that column X is the best predictor for classe. Yep, it's true! 
+
+Clearly, to train the model, we will need to remove X from the training set. But first, let's get rid of columns that are mostly NA. 
+
+
+```{r}
+# Figure out if any column is all NAs
+sapply(train_data, function(x)all(is.na(x)))
+
+# It's not, so figure out how many columns are MOSTLY NAs. 
+sapply(train_data, 
+       function(x)NROW(na.omit(x))/NROW(x))
+
+# Looking at the results, we see that all columns have either all measures 
+#   or the same number of non-measures. Let's get rid of the columns 
+#   that have 2% of values. 
+sapply(train_data, 
+       function(x)NROW(na.omit(x)))
+
+# Turn it into a logical expression so we can use it for filtering
+keep_cols <- sapply(train_data, 
+       function(x)NROW(na.omit(x))!=406)
+
+train_data <- train_data[keep_cols]
+
+# We still have a bunch of columns with empty values, because 
+# it sees "" as a factor level. I think these also have "#DIV/0" as a factor 
+# level. Let's see if we can figure out which columns can be removed based
+# on this. 
+
+# We have a couple columns we need to fix. 
+train_data$cvtd_timestamp <- as.character(train_data$cvtd_timestamp)
+# I'm not quite sure if this is how i want to handle this, but it's what it is for now. 
+train_data$new_window <- as.character(train_data$new_window)
+
+keep_cols_2 <- sapply(train_data, function(x)!any(levels(x)=='#DIV/0!'))
+train_data <- train_data[keep_cols_2]
+      
+
+
+
+```
+
+Now we have `r ncol(train_data)` columns of data. 
+
+```{r}
+train_data <- train_data[2:60]
+
+modFit <- train(classe ~ .,method="rpart", data=train_data[1:2000,])
+print(modFit$finalModel)
+plot(modFit$finalModel, uniform=TRUE, main="Classification Tree")
+text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
+fancyRpartPlot(modFit$finalModel)
+
+```
+
+```{r}
+
+prComp <- prcomp(na.omit(train_data[,sapply(train_data,is.numeric)]))
+
+prComp <- prcomp(train_data)
+summary(prComp)
+plot(prComp, type="lines")
+
+```
+
+```{r}
+
+transform(train_data,
+          win_ind = ave(new_window=="yes", FUN = function(x) {
+            cumsum(x) }))
+
+train_data$win_ind <- ave(train_data$new_window=="yes", FUN = function(x) {
+            cumsum(x) })
+
+foo <- data.frame(diff(train_data$raw_timestamp_part_2))
+foo<- rbind(0,foo)
+colnames(foo) <- c("t2_delta")
+foo[foo$some_diff < 0,] <- 0
+
+# Another way to do this, but it creates a group, which I may or may not want. 
+#train_data <- group_by(train_data, num_window) %>% mutate(t2_delta = c(0,diff(raw_timestamp_part_2)))
+
+
+```
+
+
+```{r}
+
+# Okay, building a ctree again. 
+train_data <- train_data[6:61]
+
+modFit <- train(classe ~ .,method="rpart", data=train_data[,-55]) # excluding "win_ind"
+print(modFit$finalModel)
+plot(modFit$finalModel, uniform=TRUE, main="Classification Tree")
+text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
+fancyRpartPlot(modFit$finalModel)
+
+
+```
+
+
+Enough of this, let's generate a random forest. 
+
+```{r}
+
+in_small_train <- createDataPartition(y=train_data$classe,p=0.2, list=FALSE)#train_data[1:2000]
+small_td <- train_data[in_small_train,]
+modFit_rf <- train(classe~.,data=small_td,method="rf",prox=TRUE)
+
+```
+
+Evaluating the result on the data we trained with: 
+
+```{r}
+getTree(modFit_rf$finalModel,k=2)
+fancyRpartPlot(modFit_rf$finalModel)
+pred_train <- predict(modFit_rf, small_td)
+small_td$predRight <- pred_train==small_td$classe
+table(pred_train, small_td$classe)
+
+pred_train2 <- predict(modFit_rf, train_data)
+train_data$predRight <- pred_train2==train_data$classe
+table(pred_train2, train_data$classe)
+
+
+```
+
+
+```{r}
+
+clean_test_data <- function(data){
+  
+  data <- data[keep_cols]
+  data <- data[keep_cols_2]
+  
+  # Get rid of X column
+  data <- data[2:60]
+  
+  
+  # Add the time diff column (t2_delta)
+  data <- group_by(data, num_window) %>% mutate(t2_delta = 
+                                                  c(0,diff(raw_timestamp_part_2)))
+  
+   data$win_ind <- ave(data$new_window=="yes", FUN = function(x) {
+            cumsum(x) })
+  
+  # Get rid of other cols
+  data <- data[6:61]
+  
+ 
+  # Remove win_ind col
+
+}
+
+```
+
+# Testing
+
+```{r}
+testing<- read.csv('pml-testing.csv')
+
+# Repeat the transforms, which are captured in a function. 
+
+clean_test <- clean_test_data(testing)
+
+pred_test <- predict(modFit_rf, clean_test)
+
+
+```
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
