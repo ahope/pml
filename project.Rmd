@@ -2,16 +2,17 @@
 title: "Course Project"
 author: "ahs"
 date: "December 14, 2014"
-output: pdf_document
+output: html_document
 ---
 Project Goal
 The goal of this project is to determine how well people perform a particular exercise. 
 
-```{r}
+```{r echo=FALSE, warning=FALSE, error=FALSE}
 # Load libraries
 library(caret)
 library(rattle)
 library(dplyr)
+library(randomForest)
 
 # Load the data
 train_data <- read.csv('pml-training.csv')
@@ -32,19 +33,20 @@ train_data <- read.csv('pml-training.csv')
 How to deal with NA values
 
 
-```{r}
-# Figure out if any column is all NAs
-sapply(train_data, function(x)all(is.na(x)))
-
-# It's not, so figure out how many columns are MOSTLY NAs. 
-sapply(train_data, 
-       function(x)NROW(na.omit(x))/NROW(x))
-
-# Looking at the results, we see that all columns have either all measures 
-#   or the same number of non-measures. Let's get rid of the columns 
-#   that have 2% of values. 
-sapply(train_data, 
-       function(x)NROW(na.omit(x)))
+```{r echo=FALSE, warning=FALSE, error=FALSE}
+# 
+# # Figure out if any column is all NAs
+# sapply(train_data, function(x)all(is.na(x)))
+# 
+# # It's not, so figure out how many columns are MOSTLY NAs. 
+# sapply(train_data, 
+#        function(x)NROW(na.omit(x))/NROW(x))
+# 
+# # Looking at the results, we see that all columns have either all measures 
+# #   or the same number of non-measures. Let's get rid of the columns 
+# #   that have 2% of values. 
+# sapply(train_data, 
+#        function(x)NROW(na.omit(x)))
 
 # Turn it into a logical expression so we can use it for filtering
 keep_cols <- sapply(train_data, 
@@ -67,59 +69,53 @@ train_data <- train_data[keep_cols_2]
       
 
 
-
 ```
 
 Now we have `r ncol(train_data)` columns of data. 
 
-```{r}
+```{r echo=FALSE, warning=FALSE, error=FALSE}
 train_data <- train_data[2:60]
 
-modFit <- train(classe ~ .,method="rpart", data=train_data[1:2000,])
-print(modFit$finalModel)
-plot(modFit$finalModel, uniform=TRUE, main="Classification Tree")
-text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
-fancyRpartPlot(modFit$finalModel)
+# modFit <- train(classe ~ .,method="rpart", data=train_data[1:2000,])
+# print(modFit$finalModel)
+# plot(modFit$finalModel, uniform=TRUE, main="Classification Tree")
+# text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
+# fancyRpartPlot(modFit$finalModel)
 
 ```
 
-```{r}
 
-prComp <- prcomp(na.omit(train_data[,sapply(train_data,is.numeric)]))
 
-prComp <- prcomp(train_data)
-summary(prComp)
-plot(prComp, type="lines")
-
-```
-
-```{r}
-
-transform(train_data,
-          win_ind = ave(new_window=="yes", FUN = function(x) {
-            cumsum(x) }))
+```{r  echo=FALSE, warning=FALSE, error=FALSE}
 
 train_data$win_ind <- ave(train_data$new_window=="yes", FUN = function(x) {
             cumsum(x) })
 
-foo <- data.frame(diff(train_data$raw_timestamp_part_2))
-foo<- rbind(0,foo)
-colnames(foo) <- c("t2_delta")
-foo[foo$some_diff < 0,] <- 0
+# foo <- data.frame(diff(train_data$raw_timestamp_part_2))
+# foo<- rbind(0,foo)
+# colnames(foo) <- c("t2_delta")
+# foo[foo$some_diff < 0,] <- 0
 
 # Another way to do this, but it creates a group, which I may or may not want. 
-#train_data <- group_by(train_data, num_window) %>% mutate(t2_delta = c(0,diff(raw_timestamp_part_2)))
+train_data <- group_by(train_data, num_window) %>% mutate(t2_delta = c(0,diff(raw_timestamp_part_2)))
+
+
 
 
 ```
 
 
-```{r}
+```{r echo=FALSE, warning=FALSE, error=FALSE}
 
 # Okay, building a ctree again. 
 train_data <- train_data[6:61]
 
-modFit <- train(classe ~ .,method="rpart", data=train_data[,-55]) # excluding "win_ind"
+#modFit <- train(classe ~ .,method="rpart", data=train_data[,-55]) # excluding "win_ind"
+#save(modFit, file="myClassTree.RData")
+
+# Instead of training again, just load the saved one from file. 
+load("myClassTree.RData")
+
 print(modFit$finalModel)
 plot(modFit$finalModel, uniform=TRUE, main="Classification Tree")
 text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
@@ -131,23 +127,30 @@ fancyRpartPlot(modFit$finalModel)
 
 Enough of this, let's generate a random forest. 
 
-```{r}
+```{r echo=FALSE, warning=FALSE, error=FALSE}
 
-in_small_train <- createDataPartition(y=train_data$classe,p=0.2, list=FALSE)#train_data[1:2000]
+in_small_train <- createDataPartition(y=train_data$classe,p=0.2, list=FALSE)
 small_td <- train_data[in_small_train,]
-modFit_rf <- train(classe~.,data=small_td,method="rf",prox=TRUE)
+
+#modFit_rf <- train(classe~.,data=small_td,method="rf",prox=TRUE)
+#save(modFit_rf, file="myRandomForest.RData")
+
+load(file="myRandomForest.RData")
+
 
 ```
 
 Evaluating the result on the data we trained with: 
 
-```{r}
+```{r echo=FALSE, warning=FALSE, error=FALSE}
 getTree(modFit_rf$finalModel,k=2)
-fancyRpartPlot(modFit_rf$finalModel)
 pred_train <- predict(modFit_rf, small_td)
 small_td$predRight <- pred_train==small_td$classe
 table(pred_train, small_td$classe)
 
+```
+
+```{r echo=FALSE, warning=FALSE, error=FALSE}
 pred_train2 <- predict(modFit_rf, train_data)
 train_data$predRight <- pred_train2==train_data$classe
 table(pred_train2, train_data$classe)
@@ -156,7 +159,7 @@ table(pred_train2, train_data$classe)
 ```
 
 
-```{r}
+```{r echo=FALSE, warning=FALSE, error=FALSE}
 
 clean_test_data <- function(data){
   
@@ -186,7 +189,9 @@ clean_test_data <- function(data){
 
 # Testing
 
-```{r}
+Clearly, something is wrong with my model because I predict that everything is A. 
+
+```{r echo=FALSE, warning=FALSE, error=FALSE}
 testing<- read.csv('pml-testing.csv')
 
 # Repeat the transforms, which are captured in a function. 
@@ -194,22 +199,8 @@ testing<- read.csv('pml-testing.csv')
 clean_test <- clean_test_data(testing)
 
 pred_test <- predict(modFit_rf, clean_test)
-
+pred_test
 
 ```
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r}
-summary(cars)
-```
-
-You can also embed plots, for example:
-
-```{r, echo=FALSE}
-plot(cars)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
