@@ -31,31 +31,6 @@ train_data <- read.csv('pml-training.csv')
 # Exploration
 How to deal with NA values
 
-# PCA
-
-```{r}
-prComp <- prcomp(na.omit(train_data[,sapply(train_data,is.numeric)]))
-summary(prComp)
-plot(prComp, type="lines")
-
-```
-
-
-# Classification Tree
-
-```{r}
-modFit <- train(classe ~ .,method="rpart", data=train_data)
-print(modFit$finalModel)
-plot(modFit$finalModel, uniform=TRUE, main="Classification Tree")
-text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
-fancyRpartPlot(modFit$finalModel)
-
-```
-
-Awesome. See that amazing classification tree? That shows us that column X is the best predictor for classe. Yep, it's true! 
-
-Clearly, to train the model, we will need to remove X from the training set. But first, let's get rid of columns that are mostly NA. 
-
 
 ```{r}
 # Figure out if any column is all NAs
