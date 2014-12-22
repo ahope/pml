@@ -4,12 +4,15 @@ author: "ahs"
 date: "December 14, 2014"
 output: html_document
 ---
-Project Goal
-The goal of this project is to determine how well people perform a particular exercise. 
+# Project Goal
+
+The goal of this project is to determine how well people perform a particular exercise. I have no idea why all these errors/warnings are popping up here, so sorry. 
 
 ```{r echo=FALSE, warning=FALSE, error=FALSE}
 # Load libraries
 library(caret)
+library(lattice)
+library(ggplot2)
 library(rattle)
 library(dplyr)
 library(randomForest)
@@ -20,18 +23,10 @@ train_data <- read.csv('pml-training.csv')
 
 ```
 
-1. Load the training data. 
-2. Do some exploration. 
-    + PCA to figure out what variables to get rid of. 
-    + 
-3. Decide on a model
-  + Regression/linear model
-  + Classification tree
-  + Random forest
   
 # Exploration
-How to deal with NA values
 
+The first step is to figure out what columns to use or not. We start with about 160 columns, which is a lot. I found that many columns weren't well populated, so I went through and removed those. To do this, I kept a data structure of which columns had good values for use in cleaning the test data. 
 
 ```{r echo=FALSE, warning=FALSE, error=FALSE}
 # 
@@ -84,6 +79,7 @@ train_data <- train_data[2:60]
 
 ```
 
+Looking at the data, I thought it might be helpful to have a notion of where in the window the sample was taken, so I generated a t2_delta column to account for this. I haven't yet evaluated if this was at all meaningful. 
 
 
 ```{r  echo=FALSE, warning=FALSE, error=FALSE}
@@ -103,6 +99,8 @@ train_data <- group_by(train_data, num_window) %>% mutate(t2_delta = c(0,diff(ra
 
 
 ```
+
+After building a classification tree that over-relied on the character columns of user name and such, I removed those, then built a new model. 
 
 
 ```{r echo=FALSE, warning=FALSE, error=FALSE}
@@ -124,10 +122,11 @@ fancyRpartPlot(modFit$finalModel)
 
 ```
 
+This looks more interesting than previous, so I'm going with this for now. 
 
-Enough of this, let's generate a random forest. 
+Now, let's generate a random forest. Because it was taking so long to build, I created a new subset of train data to train faster. 
 
-```{r echo=FALSE, warning=FALSE, error=FALSE}
+```{r warning=FALSE, error=FALSE}
 
 in_small_train <- createDataPartition(y=train_data$classe,p=0.2, list=FALSE)
 small_td <- train_data[in_small_train,]
@@ -140,7 +139,7 @@ load(file="myRandomForest.RData")
 
 ```
 
-Evaluating the result on the data we trained with: 
+Evaluating the result on the small set of data we trained with: 
 
 ```{r echo=FALSE, warning=FALSE, error=FALSE}
 getTree(modFit_rf$finalModel,k=2)
@@ -149,6 +148,8 @@ small_td$predRight <- pred_train==small_td$classe
 table(pred_train, small_td$classe)
 
 ```
+
+That looks good, so I'm going to apply it to the entire training set: 
 
 ```{r echo=FALSE, warning=FALSE, error=FALSE}
 pred_train2 <- predict(modFit_rf, train_data)
@@ -159,7 +160,9 @@ table(pred_train2, train_data$classe)
 ```
 
 
-```{r echo=FALSE, warning=FALSE, error=FALSE}
+Since that looks good too, I'm going to go ahead and apply that to the test data. I created a function using my saved columns above to apply to the test data. 
+
+```{r warning=FALSE, error=FALSE}
 
 clean_test_data <- function(data){
   
